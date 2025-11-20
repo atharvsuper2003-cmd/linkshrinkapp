@@ -1,463 +1,522 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkShrink - Client-Side URL Shortener (Dark Theme)</title>
-    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind --><script>
-        tailwind.config = {
-            darkMode: 'class', // Enable dark mode based on 'dark' class on <html>
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        // Dark Theme Palette
-                        'primary': '#4CAF50', // A vibrant green for primary actions
-                        'secondary': '#2196F3', // A bright blue
-                        'accent': '#FFEB3B', // A light amber for highlights
-                        'dark-bg': '#1a1a2e', // Deep Space Blue
-                        'dark-card': '#16213e', // Slightly lighter dark blue for cards
-                        'dark-text': '#e0e0e0', // Light gray for general text
-                        'dark-muted': '#a0a0a0', // Muted gray for secondary text
-                        'dark-border': '#334155', // Slate-gray for borders
-                        'dark-input-bg': '#2b2b48', // Darker input background
-                    }
-                }
+    <title>TinyLink URL Shortener</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .table-cell-url {
+            max-width: 250px; /* Limit width on larger screens */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        @media (max-width: 640px) {
+            .table-cell-url {
+                max-width: 150px;
             }
         }
-    </script>
-    <style>
-        /* Custom scrollbar styling for better aesthetics in dark mode */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
+        /* Custom scrollbar style for the table container */
+        .overflow-x-auto::-webkit-scrollbar {
+            height: 8px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #4A5568; /* Darker gray for thumb */
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+            background: #d1d5db;
             border-radius: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background-color: #2D3748; /* Even darker gray for track */
-        }
-        /* Style for the button bubble effect */
-        .btn-bubble {
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .btn-bubble:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Darker shadow for dark mode */
-        }
-        .btn-bubble:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
         }
     </style>
 </head>
-<body class="bg-dark-bg text-dark-text font-sans min-h-screen p-4 sm:p-8">
+<body class="min-h-screen">
 
-    <div id="app" class="max-w-4xl mx-auto">
-        <!-- Header --><header class="text-center mb-8">
-            <h1 class="text-4xl sm:text-5xl font-extrabold text-primary mb-2">LinkShrink</h1>
-            <p class="text-dark-muted text-lg">Shorten, Track, and Manage Your URLs (Client-Side Demo)</p>
-            <p id="auth-status" class="mt-2 text-sm text-dark-muted">
-                Authentication Status: <span id="user-id-display">Loading...</span>
-            </p>
-        </header>
+    <header class="bg-indigo-700 shadow-lg">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-white">🔗 TinyLink Dashboard</h1>
+            <button id="healthcheck-btn" class="bg-indigo-500 hover:bg-indigo-400 text-white font-semibold py-1 px-3 rounded-lg shadow-md transition duration-150">
+                Check /healthz
+            </button>
+        </div>
+    </header>
 
-        <!-- Main Content Area --><main id="main-content" class="space-y-12">
+    <main class="max-w-7xl mx-auto py-8 sm:py-10 px-4 sm:px-6 lg:px-8">
 
-            <!-- Shortening Form --><section class="bg-dark-card p-6 sm:p-8 rounded-xl shadow-lg border border-dark-border">
-                <h2 class="text-2xl font-bold text-dark-text mb-4">Shorten a New Link</h2>
-                <form id="shorten-form" class="space-y-4">
-                    <input type="url" id="long-url" required placeholder="Enter your long URL here (e.g., https://google.com)"
-                           class="w-full p-3 border border-dark-border rounded-lg focus:ring-primary focus:border-primary transition duration-150 bg-dark-input-bg text-dark-text placeholder-dark-muted"
-                           autocomplete="off">
+        <!-- Status Message Box -->
+        <div id="status-message" class="hidden p-4 mb-6 rounded-lg font-medium transition duration-300"></div>
 
-                    <button type="submit" id="shorten-button" disabled
-                            class="w-full bg-primary text-white p-3 rounded-lg font-semibold shadow-md btn-bubble disabled:opacity-50 disabled:cursor-not-allowed">
-                        Shrink URL
+        <!-- 1. Link Creation Form -->
+        <section class="bg-white shadow-xl p-6 sm:p-8 rounded-xl mb-10">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-3">Shorten a New URL</h2>
+            <form id="create-link-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2">
+                        <label for="targetUrl" class="block text-sm font-medium text-gray-700">Target URL (must include http/https)</label>
+                        <input type="url" id="targetUrl" placeholder="https://www.example.com/very-long-path" required
+                            class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div class="md:col-span-1">
+                        <label for="shortCode" class="block text-sm font-medium text-gray-700">Custom Code (Optional, 6-8 alphanumeric)</label>
+                        <div class="flex mt-1">
+                             <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 text-gray-500 text-sm">
+                                <span id="base-url-display">yourhost/</span>
+                            </span>
+                            <input type="text" id="shortCode" placeholder="docs123" maxlength="8"
+                                class="flex-1 block w-full rounded-r-lg border-gray-300 shadow-sm p-3 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <p id="code-validation-msg" class="text-xs text-red-500 mt-1 hidden">Code must be 6-8 alphanumeric characters.</p>
+                    </div>
+                </div>
+                
+                <div class="pt-4">
+                    <button type="submit" id="submit-btn" disabled
+                        class="w-full sm:w-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-md text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition duration-150">
+                        Shorten Link
                     </button>
-                    <div id="form-message" class="text-sm text-center font-medium h-5"></div>
-                </form>
-            </section>
+                </div>
+            </form>
+        </section>
 
-            <!-- Links Dashboard --><section class="bg-dark-card p-6 sm:p-8 rounded-xl shadow-lg border border-dark-border">
-                <h2 class="text-2xl font-bold text-dark-text mb-4 flex justify-between items-center">
-                    Your Shortened Links
-                    <span id="link-count" class="text-sm font-medium text-primary bg-primary/20 px-3 py-1 rounded-full">0 Links</span>
-                </h2>
+        <!-- 2. Links List and Statistics -->
+        <section class="bg-white shadow-xl p-6 sm:p-8 rounded-xl">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-3">Existing Links & Statistics</h2>
+            
+            <div id="links-container">
+                <div id="loading-state" class="text-center py-12 text-gray-500 hidden">
+                    <svg class="animate-spin h-6 w-6 mr-3 inline text-indigo-500" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Loading links...
+                </div>
 
-                <!-- Link List Table --><div class="overflow-x-auto custom-scrollbar">
-                    <table class="min-w-full divide-y divide-dark-border">
-                        <thead>
-                            <tr class="text-left text-xs font-medium text-dark-muted uppercase tracking-wider">
-                                <th class="py-3 px-4">Short URL (Click to Open)</th>
-                                <th class="py-3 px-4">Original URL</th>
-                                <th class="py-3 px-4 text-center">Clicks</th>
-                                <th class="py-3 px-4 text-right">Actions</th>
+                <div id="empty-state" class="text-center py-12 text-gray-500 hidden">
+                    <p class="text-lg">You haven't created any TinyLinks yet!</p>
+                    <p class="mt-2 text-sm">Use the form above to get started.</p>
+                </div>
+
+                <div id="links-table-container" class="overflow-x-auto hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Short Code</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target URL</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">Clicks</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Clicked</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="links-table-body" class="divide-y divide-dark-border">
-                            <!-- Links will be rendered here --><tr id="loading-row">
-                                <td colspan="4" class="py-4 text-center text-dark-muted">Waiting for authentication...</td>
-                            </tr>
+                        <tbody id="links-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Link rows will be inserted here by JavaScript -->
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </section>
+    </main>
 
-                <!-- No Links State --><div id="no-links-message" class="hidden text-center py-10 text-dark-muted">
-                    <svg class="mx-auto h-12 w-12 text-dark-border" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.865a4 4 0 00-.566-.566l-1.1-1.1l-1.1-1.1a4 4 0 00-5.656-5.656l-4 4a4 4 0 005.656 5.656l1.101 1.102" />
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-dark-text">No links shortened yet</h3>
-                    <p class="mt-1 text-sm text-dark-muted">Get started by shrinking a URL above.</p>
-                </div>
-            </section>
-        </main>
+    <!-- Modal for Stats/Details (Simulated Stats Page /code/:code) -->
+    <div id="stats-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 hidden flex items-center justify-center p-4 z-50 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 transform transition-transform duration-300 scale-95">
+            <h3 class="text-2xl font-bold mb-4 text-indigo-700">Link Details & Stats</h3>
+            <div id="modal-content" class="space-y-3">
+                <!-- Content will be populated by JS -->
+            </div>
+            <button onclick="closeModal()" class="mt-6 w-full py-2 px-4 rounded-lg bg-gray-200 hover:bg-gray-300 font-semibold transition duration-150">Close</button>
+        </div>
     </div>
 
-    <!-- Firebase SDK Imports --><script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import {
-            getFirestore, collection, query, onSnapshot,
-            addDoc, doc, updateDoc, deleteDoc, setLogLevel
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // IMPORTANT: Set Firestore logging level (optional but helpful for debugging)
-        setLogLevel('Debug');
+    <script>
+        // ====================================================================
+        // TINYLINK FRONTEND JS LOGIC (SIMULATED API & DATABASE)
+        // NOTE: In a real submission, this API logic would be replaced with 
+        // fetch calls to a deployed backend server.
+        // ====================================================================
 
-        // --- GLOBAL VARIABLES (Mapped from Canvas Environment) ---
-        let app = null;
-        let db = null;
-        let auth = null;
-        let userId = null;
-        let isAuthReady = false;
+        const DB_KEY = 'tiny_link_db';
 
-        const shortenForm = document.getElementById('shorten-form');
-        const longUrlInput = document.getElementById('long-url');
-        const shortenButton = document.getElementById('shorten-button');
-        const formMessage = document.getElementById('form-message');
-        const linksTableBody = document.getElementById('links-table-body');
-        const linkCountDisplay = document.getElementById('link-count');
-        const loadingRow = document.getElementById('loading-row');
-        const noLinksMessage = document.getElementById('no-links-message');
-        const userIdDisplay = document.getElementById('user-id-display');
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        /**
-         * Initializes Firebase and authenticates the user.
-         */
-        async function initializeFirebase() {
-            try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    throw new Error("Firebase configuration is missing.");
-                }
-
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                // 1. Authentication Listener
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
-                        userIdDisplay.textContent = userId;
-                        shortenButton.disabled = false;
-                        loadingRow.classList.add('hidden');
-                        console.log("Firebase Auth Ready. User ID:", userId);
-                        // Start listening to links data only when authenticated
-                        startLinksListener();
-                    } else {
-                        // User is signed out, or initial state is pending
-                        userId = null;
-                        isAuthReady = true;
-                        userIdDisplay.textContent = 'Guest (Signing in...)';
-                        shortenButton.disabled = true;
-                        console.log("User signed out or initial state. Attempting sign-in...");
-                        
-                        // 2. Initial Sign-In Attempt
-                        try {
-                            if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                                console.log("Signed in with custom token.");
-                            } else {
-                                await signInAnonymously(auth);
-                                console.log("Signed in anonymously.");
-                            }
-                        } catch (error) {
-                            console.error("Authentication failed:", error);
-                            userIdDisplay.textContent = 'Auth Failed';
-                        }
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                userIdDisplay.textContent = `Error: ${error.message}`;
-                shortenButton.disabled = true;
-            }
-        }
-
-        /**
-         * Generates a short, random alphanumeric ID.
-         * @param {number} length
-         * @returns {string} The short ID.
-         */
-        function generateShortId(length = 6) {
-            const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let result = '';
+        // Utility to generate a random 6-8 character code
+        const generateCode = () => {
+            const length = Math.floor(Math.random() * 3) + 6; // 6, 7, or 8
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let code = '';
             for (let i = 0; i < length; i++) {
-                result += CHARACTERS.charAt(Math.floor(Math.random() * CHARACTERS.length));
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
             }
-            return result;
-        }
+            return code;
+        };
 
-        /**
-         * Renders the list of shortened links to the table.
-         * @param {Array<Object>} links
-         */
-        function renderLinks(links) {
+        // --- Simulated Database Functions (using localStorage) ---
+
+        const loadDb = () => {
+            try {
+                const data = localStorage.getItem(DB_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch (e) {
+                console.error("Failed to load database from localStorage:", e);
+                return {};
+            }
+        };
+
+        const saveDb = (db) => {
+            try {
+                localStorage.setItem(DB_KEY, JSON.stringify(db));
+            } catch (e) {
+                console.error("Failed to save database to localStorage:", e);
+            }
+        };
+
+        // --- Simulated API Endpoints ---
+
+        // POST /api/links (Create link)
+        const apiCreateLink = async (targetUrl, customCode) => {
+            const db = loadDb();
+            let code = customCode;
+
+            // 1. Validate Code [A-Za-z0-9]{6,8}
+            const codeRegex = /^[A-Za-z0-9]{6,8}$/;
+            if (code && !codeRegex.test(code)) {
+                throw { status: 400, message: "Custom code must be 6-8 alphanumeric characters." };
+            }
+
+            // 2. Generate code if not provided
+            if (!code) {
+                do {
+                    code = generateCode();
+                } while (db[code]); // Ensure random code is unique
+            }
+
+            // 3. Check for 409 Conflict
+            if (db[code]) {
+                throw { status: 409, message: `Short code '${code}' already exists.` };
+            }
+
+            // 4. Create link
+            db[code] = {
+                short_code: code,
+                target_url: targetUrl,
+                total_clicks: 0,
+                created_at: new Date().toISOString(),
+                last_clicked_at: null,
+            };
+            saveDb(db);
+            return db[code];
+        };
+
+        // GET /api/links (List all links)
+        const apiListLinks = async () => {
+            const db = loadDb();
+            return Object.values(db).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        };
+
+        // GET /api/links/:code (Stats for one code)
+        const apiGetStats = async (code) => {
+            const db = loadDb();
+            const link = db[code];
+            if (!link) {
+                throw { status: 404, message: "Link not found." };
+            }
+            return link;
+        };
+
+        // DELETE /api/links/:code (Delete link)
+        const apiDeleteLink = async (code) => {
+            const db = loadDb();
+            if (!db[code]) {
+                throw { status: 404, message: "Link not found." };
+            }
+            delete db[code];
+            saveDb(db);
+            return { status: 204, message: "Link deleted successfully." };
+        };
+        
+        // GET /:code (Redirect and Increment Clicks)
+        // Note: This is client-side simulation. A real app uses a server route.
+        const apiRedirectAndIncrement = async (code) => {
+            const db = loadDb();
+            const link = db[code];
+            if (!link) {
+                throw { status: 404, message: "Link not found (404)." };
+            }
+            
+            // 1. Increment and Update
+            link.total_clicks = (link.total_clicks || 0) + 1;
+            link.last_clicked_at = new Date().toISOString();
+            saveDb(db);
+
+            // 2. Return Target URL for 302 Simulation
+            return { status: 302, target_url: link.target_url };
+        };
+
+        // GET /healthz (Health Check)
+        const apiHealthCheck = async () => {
+            // Simulated latency for realism
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return { 
+                ok: true, 
+                version: "1.0", 
+                database: "Simulated localStorage" 
+            };
+        };
+
+
+        // ====================================================================
+        // UI FUNCTIONS
+        // ====================================================================
+
+        const statusMessage = document.getElementById('status-message');
+        const linksTableBody = document.getElementById('links-table-body');
+        const loadingState = document.getElementById('loading-state');
+        const emptyState = document.getElementById('empty-state');
+        const linksTableContainer = document.getElementById('links-table-container');
+        const shortCodeInput = document.getElementById('shortCode');
+        const targetUrlInput = document.getElementById('targetUrl');
+        const codeValidationMsg = document.getElementById('code-validation-msg');
+        const submitBtn = document.getElementById('submit-btn');
+        const statsModal = document.getElementById('stats-modal');
+        const modalContent = document.getElementById('modal-content');
+        const baseUrlDisplay = document.getElementById('base-url-display');
+        
+        // Set the base URL display
+        baseUrlDisplay.textContent = `${window.location.origin}/`;
+
+        const setStatus = (message, type) => {
+            statusMessage.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+            if (type === 'success') {
+                statusMessage.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === 'error') {
+                statusMessage.classList.add('bg-red-100', 'text-red-700');
+            }
+            statusMessage.textContent = message;
+        };
+
+        const hideStatus = () => {
+            statusMessage.classList.add('hidden');
+        };
+
+        const formatTimestamp = (isoString) => {
+            if (!isoString) return 'N/A';
+            return new Date(isoString).toLocaleString();
+        };
+        
+        const validateForm = () => {
+            const code = shortCodeInput.value.trim();
+            const targetUrl = targetUrlInput.value.trim();
+            const codeRegex = /^[A-Za-z0-9]{6,8}$/;
+            const isValidCode = !code || codeRegex.test(code);
+            const isValidUrl = targetUrlInput.checkValidity(); // Checks if type="url" is valid
+
+            if (code && !isValidCode) {
+                codeValidationMsg.classList.remove('hidden');
+            } else {
+                codeValidationMsg.classList.add('hidden');
+            }
+
+            submitBtn.disabled = !isValidUrl || (code && !isValidCode);
+        };
+
+        // --- Render Functions ---
+
+        const renderLinks = (links) => {
             linksTableBody.innerHTML = '';
-            linkCountDisplay.textContent = `${links.length} Links`;
             
             if (links.length === 0) {
-                noLinksMessage.classList.remove('hidden');
-            } else {
-                noLinksMessage.classList.add('hidden');
-            }
-
-            // Sort links by creation date descending
-            links.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-
-            links.forEach(link => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-dark-input-bg transition duration-150'; // Adjusted hover for dark theme
-
-                // Helper to format the long URL display
-                const displayUrl = link.longUrl.length > 50 ? link.longUrl.substring(0, 47) + '...' : link.longUrl;
-
-                row.innerHTML = `
-                    <td class="py-3 px-4 whitespace-nowrap text-sm font-medium text-secondary">
-                        <a href="#" data-id="${link.id}" data-url="${link.longUrl}" 
-                           class="simulated-short-link hover:underline font-mono bg-secondary/20 px-2 py-0.5 rounded-md">
-                            /s/${link.shortId}
-                        </a>
-                    </td>
-                    <td class="py-3 px-4 text-sm text-dark-text max-w-xs truncate" title="${link.longUrl}">
-                        ${displayUrl}
-                    </td>
-                    <td class="py-3 px-4 whitespace-nowrap text-sm text-center font-bold text-dark-text">
-                        ${link.clicks}
-                    </td>
-                    <td class="py-3 px-4 whitespace-nowrap text-sm text-right font-medium">
-                        <button data-id="${link.id}" class="copy-button text-primary hover:text-accent p-1 rounded-md transition duration-150" title="Copy Short URL">
-                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v4a1 1 0 001 1h5m-5-4v4h5M9 8h.01M15 8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </button>
-                        <button data-id="${link.id}" class="delete-button text-red-500 hover:text-red-300 p-1 rounded-md transition duration-150" title="Delete Link">
-                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </td>
-                `;
-                linksTableBody.appendChild(row);
-            });
-        }
-        
-        /**
-         * Handles the form submission to create a new short link.
-         * @param {Event} e
-         */
-        async function handleShorten(e) {
-            e.preventDefault();
-            const longUrl = longUrlInput.value.trim();
-
-            if (!longUrl || !isAuthReady || !userId) {
-                formMessage.textContent = "Please enter a valid URL and wait for authentication.";
-                formMessage.classList.remove('text-green-600', 'text-red-600');
-                formMessage.classList.add('text-yellow-400'); // Adjusted for dark theme
+                emptyState.classList.remove('hidden');
+                linksTableContainer.classList.add('hidden');
                 return;
             }
 
-            shortenButton.disabled = true;
-            formMessage.textContent = "Shortening...";
-            formMessage.classList.remove('text-red-600', 'text-yellow-400');
-            formMessage.classList.add('text-dark-muted');
+            emptyState.classList.add('hidden');
+            linksTableContainer.classList.remove('hidden');
+
+            links.forEach(link => {
+                const tr = document.createElement('tr');
+                tr.classList.add('hover:bg-gray-50');
+                
+                tr.innerHTML = `
+                    <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                        <a href="#" data-code="${link.short_code}" class="short-link hover:underline font-mono">${link.short_code}</a>
+                    </td>
+                    <td class="px-3 py-4 text-sm text-gray-500 table-cell-url" title="${link.target_url}">
+                        ${link.target_url}
+                    </td>
+                    <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold text-center">${link.total_clicks}</td>
+                    <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${formatTimestamp(link.last_clicked_at)}</td>
+                    <td class="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button data-code="${link.short_code}" class="copy-btn text-blue-600 hover:text-blue-900 mr-2" title="Copy Short URL">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z"></path><path d="M4.305 7.07a1 1 0 011.086.634l.322.842-1.995 1.994-1.464-1.464a1 1 0 011.414-1.414l.033.033zM9 11H3V5h2.95l.775 2.029A2 2 0 007 8.447V15h8v-3.757l-.546-.547-1.414-1.414 2.585-2.585a1 1 0 011.414 0l1.414 1.414a1 1 0 010 1.414L16.414 14H15v-1a1 1 0 00-1-1h-4.722l.546.547 1.414 1.414zM16 4h-2V3a1 1 0 00-2 0v1h-2a1 1 0 00-1 1v1h2V5h2V4h2v1h2V5a1 1 0 00-1-1zM5 13.596l1.414-1.414L7.828 13H5v.596z"></path></svg>
+                        </button>
+                        <button data-code="${link.short_code}" class="stats-btn text-gray-600 hover:text-gray-900 mr-2" title="View Stats">
+                            Stats
+                        </button>
+                        <button data-code="${link.short_code}" class="delete-btn text-red-600 hover:text-red-900" title="Delete Link">
+                            Delete
+                        </button>
+                    </td>
+                `;
+                linksTableBody.appendChild(tr);
+            });
+            
+            // Re-attach event listeners after rendering
+            document.querySelectorAll('.copy-btn').forEach(btn => btn.addEventListener('click', handleCopy));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', handleDelete));
+            document.querySelectorAll('.stats-btn').forEach(btn => btn.addEventListener('click', handleStats));
+            document.querySelectorAll('.short-link').forEach(btn => btn.addEventListener('click', handleRedirect));
+        };
+
+        const loadLinks = async () => {
+            loadingState.classList.remove('hidden');
+            linksTableContainer.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            hideStatus();
 
             try {
-                // Ensure the URL has a protocol for proper linking/redirection
-                const formattedUrl = longUrl.startsWith('http://') || longUrl.startsWith('https://') ? longUrl : `https://${longUrl}`;
-                
-                const newLink = {
-                    longUrl: formattedUrl,
-                    shortId: generateShortId(),
-                    clicks: 0,
-                    createdAt: new Date(),
-                    // Storing the actual user ID inside the document for easy query/security verification
-                    userId: userId 
-                };
-
-                const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/shortened_links`);
-                await addDoc(linksCollectionRef, newLink);
-
-                formMessage.textContent = "Link successfully shortened!";
-                formMessage.classList.remove('text-dark-muted', 'text-red-600');
-                formMessage.classList.add('text-green-400'); // Adjusted for dark theme
-                longUrlInput.value = ''; // Clear input
-
+                const links = await apiListLinks();
+                renderLinks(links);
             } catch (error) {
-                console.error("Error shortening URL:", error);
-                formMessage.textContent = `Error: Failed to save link. ${error.message}`;
-                formMessage.classList.remove('text-dark-muted', 'text-green-400');
-                formMessage.classList.add('text-red-400'); // Adjusted for dark theme
+                setStatus(`Failed to load links: ${error.message || 'Check console.'}`, 'error');
+                renderLinks([]); // Render empty table on failure
             } finally {
-                shortenButton.disabled = false;
-                setTimeout(() => formMessage.textContent = '', 5000);
+                loadingState.classList.add('hidden');
             }
-        }
+        };
 
-        /**
-         * Simulates a link click: increments click count and redirects.
-         * @param {string} docId - Firestore document ID.
-         * @param {string} url - The long URL to redirect to.
-         */
-        async function handleSimulatedClick(docId, url) {
-            if (!isAuthReady || !userId) return;
+        // --- Event Handlers ---
+
+        const handleCreate = async (event) => {
+            event.preventDefault();
+            hideStatus();
+            
+            const targetUrl = targetUrlInput.value.trim();
+            const shortCode = shortCodeInput.value.trim();
+
+            if (submitBtn.disabled) return;
+            submitBtn.textContent = 'Shortening...';
+            submitBtn.disabled = true;
 
             try {
-                const linkDocRef = doc(db, `artifacts/${appId}/users/${userId}/shortened_links`, docId);
+                const newLink = await apiCreateLink(targetUrl, shortCode);
+                setStatus(`Success! Short URL: ${window.location.origin}/${newLink.short_code}`, 'success');
                 
-                // Get current link data (optimistic update is complex, so we'll just increment)
-                // Note: We cannot rely on FieldValue.increment() in a client-side demo due to potential slow connection and snapshot issues, but we will use the logic that works best here.
+                // Clear form
+                targetUrlInput.value = '';
+                shortCodeInput.value = '';
+                validateForm();
                 
-                // Fetch the current state to safely increment (safer than relying on a snapshot)
-                // However, since onSnapshot is running, we can just use a simple update
-                await updateDoc(linkDocRef, {
-                    clicks: db.clicks + 1 || 1 // Firestore FieldValue.increment would be better server-side
-                });
-
-                // Simulate the redirect
-                window.open(url, '_blank');
-
+                loadLinks(); // Reload table
             } catch (error) {
-                console.error("Error updating click count:", error);
-                // Optionally show error message
+                const msg = error.message || "An unknown error occurred during link creation.";
+                setStatus(`Error (${error.status || 500}): ${msg}`, 'error');
+            } finally {
+                submitBtn.textContent = 'Shorten Link';
+                submitBtn.disabled = false;
+                validateForm();
             }
-        }
+        };
 
-        /**
-         * Deletes a link from Firestore.
-         * @param {string} docId - Firestore document ID.
-         */
-        async function handleDeleteLink(docId) {
-            if (!isAuthReady || !userId) return;
-
-            // In a real app, you would use a custom confirmation modal here.
-            if (!confirm(`Are you sure you want to delete this link?`)) {
-                 return;
+        const handleDelete = async (event) => {
+            const code = event.currentTarget.dataset.code;
+            if (!confirm(`Are you sure you want to delete link with code: ${code}?`)) {
+                return;
             }
 
+            hideStatus();
             try {
-                const linkDocRef = doc(db, `artifacts/${appId}/users/${userId}/shortened_links`, docId);
-                await deleteDoc(linkDocRef);
+                await apiDeleteLink(code);
+                setStatus(`Link '${code}' deleted successfully.`, 'success');
+                loadLinks(); // Reload table
             } catch (error) {
-                console.error("Error deleting link:", error);
-                // Handle delete error
+                setStatus(`Failed to delete link: ${error.message}`, 'error');
             }
-        }
+        };
 
-        /**
-         * Copies the short link path to the clipboard.
-         * @param {string} shortId
-         */
-        function handleCopy(shortId) {
+        const handleCopy = (event) => {
+            const code = event.currentTarget.dataset.code;
+            const shortUrl = `${window.location.origin}/${code}`;
+            
+            // Use document.execCommand('copy') for better compatibility in iframe environments
             const tempInput = document.createElement('input');
-            const shortUrl = `/s/${shortId}`; // Simulated short path
             tempInput.value = shortUrl;
             document.body.appendChild(tempInput);
             tempInput.select();
             document.execCommand('copy');
             document.body.removeChild(tempInput);
 
-            // Simple visual feedback
-            const btn = event.target.closest('.copy-button');
-            if (btn) {
-                const originalTitle = btn.title;
-                btn.title = 'Copied!';
-                setTimeout(() => btn.title = originalTitle, 2000);
-            }
-        }
+            setStatus(`Copied: ${shortUrl}`, 'success');
+        };
 
-
-        /**
-         * Sets up the real-time listener for the user's links.
-         */
-        function startLinksListener() {
-            // Guard clause: ensure authentication is ready
-            if (!isAuthReady || !userId || !db) {
-                console.log("Waiting for auth to start listener...");
-                return;
-            }
+        const handleRedirect = async (event) => {
+            event.preventDefault(); // Prevent actual browser navigation
+            const code = event.currentTarget.dataset.code;
             
-            // Collection path: /artifacts/{appId}/users/{userId}/shortened_links
-            const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/shortened_links`);
-            const q = query(linksCollectionRef);
-
-            // Set up real-time listener
-            onSnapshot(q, (snapshot) => {
-                const links = [];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    // Map data, ensuring createdAt is handled if it's a Timestamp
-                    links.push({
-                        id: doc.id,
-                        ...data,
-                        createdAt: data.createdAt.toDate ? data.createdAt : new Date(data.createdAt) // Ensure it's a Date object
-                    });
-                });
-                renderLinks(links);
-            }, (error) => {
-                console.error("Error listening to links:", error);
-                linksTableBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-red-400">Error loading links. See console for details.</td></tr>`;
-            });
-        }
-
-        // --- Event Listeners ---
-        
-        // 1. Shorten Form Submission
-        shortenForm.addEventListener('submit', handleShorten);
-
-        // 2. Dashboard Actions (Delegated Listener for dynamic elements)
-        linksTableBody.addEventListener('click', (e) => {
-            if (e.target.closest('.simulated-short-link')) {
-                e.preventDefault();
-                const linkElement = e.target.closest('.simulated-short-link');
-                const docId = linkElement.dataset.id;
-                const url = linkElement.dataset.url;
-                handleSimulatedClick(docId, url);
-            } else if (e.target.closest('.delete-button')) {
-                const docId = e.target.closest('.delete-button').dataset.id;
-                handleDeleteLink(docId);
-            } else if (e.target.closest('.copy-button')) {
-                const row = e.target.closest('tr');
-                const shortIdElement = row.querySelector('.simulated-short-link');
-                if (shortIdElement) {
-                    const fullPath = shortIdElement.textContent.trim(); // e.g., /s/abcdeF
-                    handleCopy(fullPath);
-                }
+            try {
+                const result = await apiRedirectAndIncrement(code);
+                // Simulate 302 redirect by opening new tab
+                window.open(result.target_url, '_blank');
+                setStatus(`Redirected and Click Counted! Target: ${result.target_url}`, 'success');
+                loadLinks(); // Update click count in table
+            } catch(error) {
+                setStatus(`Redirect failed (Simulated 404): ${error.message}`, 'error');
             }
+        };
+        
+        const handleStats = async (event) => {
+            const code = event.currentTarget.dataset.code;
+            modalContent.innerHTML = '<p class="text-center text-indigo-500">Loading stats...</p>';
+            statsModal.classList.remove('hidden');
+
+            try {
+                const link = await apiGetStats(code);
+                modalContent.innerHTML = `
+                    <p class="text-sm"><span class="font-semibold text-gray-700">Short Code:</span> <span class="font-mono text-indigo-600">${link.short_code}</span></p>
+                    <p class="text-sm"><span class="font-semibold text-gray-700">Target URL:</span> <a href="${link.target_url}" target="_blank" class="text-blue-500 hover:underline">${link.target_url}</a></p>
+                    <p class="text-sm"><span class="font-semibold text-gray-700">Total Clicks:</span> <span class="text-lg font-bold text-green-600">${link.total_clicks}</span></p>
+                    <p class="text-sm"><span class="font-semibold text-gray-700">Created At:</span> ${formatTimestamp(link.created_at)}</p>
+                    <p class="text-sm"><span class="font-semibold text-gray-700">Last Clicked:</span> ${formatTimestamp(link.last_clicked_at)}</p>
+                `;
+            } catch (error) {
+                modalContent.innerHTML = `<p class="text-center text-red-500">Error fetching stats: ${error.message}</p>`;
+            }
+        };
+
+        const closeModal = () => {
+            statsModal.classList.add('hidden');
+        };
+
+        const handleHealthCheck = async () => {
+             hideStatus();
+             try {
+                const result = await apiHealthCheck();
+                setStatus(`Health Check (/healthz): ${result.ok ? 'OK' : 'ERROR'} (Version: ${result.version})`, result.ok ? 'success' : 'error');
+            } catch (error) {
+                setStatus(`Health Check Failed: Server is unreachable.`, 'error');
+            }
+        };
+
+
+        // ====================================================================
+        // INITIALIZATION
+        // ====================================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLinks(); // Initial load of links
+
+            // Attach listeners
+            document.getElementById('create-link-form').addEventListener('submit', handleCreate);
+            shortCodeInput.addEventListener('input', validateForm);
+            targetUrlInput.addEventListener('input', validateForm);
+            document.getElementById('healthcheck-btn').addEventListener('click', handleHealthCheck);
+            
+            // Initial form state validation
+            validateForm();
         });
 
-        // Initialize the app on load
-        window.onload = initializeFirebase;
-
+        // Global function to allow modal closure from button
+        window.closeModal = closeModal;
     </script>
 </body>
 </html>
