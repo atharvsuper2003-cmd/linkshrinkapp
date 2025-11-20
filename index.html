@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkShrink - Client-Side URL Shortener (Dark Theme)</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind --><script>
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode based on 'dark' class on <html>
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        // Dark Theme Palette
+                        'primary': '#4CAF50', // A vibrant green for primary actions
+                        'secondary': '#2196F3', // A bright blue
+                        'accent': '#FFEB3B', // A light amber for highlights
+                        'dark-bg': '#1a1a2e', // Deep Space Blue
+                        'dark-card': '#16213e', // Slightly lighter dark blue for cards
+                        'dark-text': '#e0e0e0', // Light gray for general text
+                        'dark-muted': '#a0a0a0', // Muted gray for secondary text
+                        'dark-border': '#334155', // Slate-gray for borders
+                        'dark-input-bg': '#2b2b48', // Darker input background
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling for better aesthetics in dark mode */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #4A5568; /* Darker gray for thumb */
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background-color: #2D3748; /* Even darker gray for track */
+        }
+        /* Style for the button bubble effect */
+        .btn-bubble {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .btn-bubble:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Darker shadow for dark mode */
+        }
+        .btn-bubble:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-dark-text font-sans min-h-screen p-4 sm:p-8">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <!-- Header --><header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-primary mb-2">LinkShrink</h1>
+            <p class="text-dark-muted text-lg">Shorten, Track, and Manage Your URLs (Client-Side Demo)</p>
+            <p id="auth-status" class="mt-2 text-sm text-dark-muted">
+                Authentication Status: <span id="user-id-display">Loading...</span>
+            </p>
+        </header>
+
+        <!-- Main Content Area --><main id="main-content" class="space-y-12">
+
+            <!-- Shortening Form --><section class="bg-dark-card p-6 sm:p-8 rounded-xl shadow-lg border border-dark-border">
+                <h2 class="text-2xl font-bold text-dark-text mb-4">Shorten a New Link</h2>
+                <form id="shorten-form" class="space-y-4">
+                    <input type="url" id="long-url" required placeholder="Enter your long URL here (e.g., https://google.com)"
+                           class="w-full p-3 border border-dark-border rounded-lg focus:ring-primary focus:border-primary transition duration-150 bg-dark-input-bg text-dark-text placeholder-dark-muted"
+                           autocomplete="off">
+
+                    <button type="submit" id="shorten-button" disabled
+                            class="w-full bg-primary text-white p-3 rounded-lg font-semibold shadow-md btn-bubble disabled:opacity-50 disabled:cursor-not-allowed">
+                        Shrink URL
+                    </button>
+                    <div id="form-message" class="text-sm text-center font-medium h-5"></div>
+                </form>
+            </section>
+
+            <!-- Links Dashboard --><section class="bg-dark-card p-6 sm:p-8 rounded-xl shadow-lg border border-dark-border">
+                <h2 class="text-2xl font-bold text-dark-text mb-4 flex justify-between items-center">
+                    Your Shortened Links
+                    <span id="link-count" class="text-sm font-medium text-primary bg-primary/20 px-3 py-1 rounded-full">0 Links</span>
+                </h2>
+
+                <!-- Link List Table --><div class="overflow-x-auto custom-scrollbar">
+                    <table class="min-w-full divide-y divide-dark-border">
+                        <thead>
+                            <tr class="text-left text-xs font-medium text-dark-muted uppercase tracking-wider">
+                                <th class="py-3 px-4">Short URL (Click to Open)</th>
+                                <th class="py-3 px-4">Original URL</th>
+                                <th class="py-3 px-4 text-center">Clicks</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="links-table-body" class="divide-y divide-dark-border">
+                            <!-- Links will be rendered here --><tr id="loading-row">
+                                <td colspan="4" class="py-4 text-center text-dark-muted">Waiting for authentication...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- No Links State --><div id="no-links-message" class="hidden text-center py-10 text-dark-muted">
+                    <svg class="mx-auto h-12 w-12 text-dark-border" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.865a4 4 0 00-.566-.566l-1.1-1.1l-1.1-1.1a4 4 0 00-5.656-5.656l-4 4a4 4 0 005.656 5.656l1.101 1.102" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-dark-text">No links shortened yet</h3>
+                    <p class="mt-1 text-sm text-dark-muted">Get started by shrinking a URL above.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Firebase SDK Imports --><script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore, collection, query, onSnapshot,
+            addDoc, doc, updateDoc, deleteDoc, setLogLevel
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // IMPORTANT: Set Firestore logging level (optional but helpful for debugging)
+        setLogLevel('Debug');
+
+        // --- GLOBAL VARIABLES (Mapped from Canvas Environment) ---
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let isAuthReady = false;
+
+        const shortenForm = document.getElementById('shorten-form');
+        const longUrlInput = document.getElementById('long-url');
+        const shortenButton = document.getElementById('shorten-button');
+        const formMessage = document.getElementById('form-message');
+        const linksTableBody = document.getElementById('links-table-body');
+        const linkCountDisplay = document.getElementById('link-count');
+        const loadingRow = document.getElementById('loading-row');
+        const noLinksMessage = document.getElementById('no-links-message');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        /**
+         * Initializes Firebase and authenticates the user.
+         */
+        async function initializeFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                    throw new Error("Firebase configuration is missing.");
+                }
+
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // 1. Authentication Listener
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        userIdDisplay.textContent = userId;
+                        shortenButton.disabled = false;
+                        loadingRow.classList.add('hidden');
+                        console.log("Firebase Auth Ready. User ID:", userId);
+                        // Start listening to links data only when authenticated
+                        startLinksListener();
+                    } else {
+                        // User is signed out, or initial state is pending
+                        userId = null;
+                        isAuthReady = true;
+                        userIdDisplay.textContent = 'Guest (Signing in...)';
+                        shortenButton.disabled = true;
+                        console.log("User signed out or initial state. Attempting sign-in...");
+                        
+                        // 2. Initial Sign-In Attempt
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                                console.log("Signed in with custom token.");
+                            } else {
+                                await signInAnonymously(auth);
+                                console.log("Signed in anonymously.");
+                            }
+                        } catch (error) {
+                            console.error("Authentication failed:", error);
+                            userIdDisplay.textContent = 'Auth Failed';
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                userIdDisplay.textContent = `Error: ${error.message}`;
+                shortenButton.disabled = true;
+            }
+        }
+
+        /**
+         * Generates a short, random alphanumeric ID.
+         * @param {number} length
+         * @returns {string} The short ID.
+         */
+        function generateShortId(length = 6) {
+            const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += CHARACTERS.charAt(Math.floor(Math.random() * CHARACTERS.length));
+            }
+            return result;
+        }
+
+        /**
+         * Renders the list of shortened links to the table.
+         * @param {Array<Object>} links
+         */
+        function renderLinks(links) {
+            linksTableBody.innerHTML = '';
+            linkCountDisplay.textContent = `${links.length} Links`;
+            
+            if (links.length === 0) {
+                noLinksMessage.classList.remove('hidden');
+            } else {
+                noLinksMessage.classList.add('hidden');
+            }
+
+            // Sort links by creation date descending
+            links.sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+
+            links.forEach(link => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-dark-input-bg transition duration-150'; // Adjusted hover for dark theme
+
+                // Helper to format the long URL display
+                const displayUrl = link.longUrl.length > 50 ? link.longUrl.substring(0, 47) + '...' : link.longUrl;
+
+                row.innerHTML = `
+                    <td class="py-3 px-4 whitespace-nowrap text-sm font-medium text-secondary">
+                        <a href="#" data-id="${link.id}" data-url="${link.longUrl}" 
+                           class="simulated-short-link hover:underline font-mono bg-secondary/20 px-2 py-0.5 rounded-md">
+                            /s/${link.shortId}
+                        </a>
+                    </td>
+                    <td class="py-3 px-4 text-sm text-dark-text max-w-xs truncate" title="${link.longUrl}">
+                        ${displayUrl}
+                    </td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-center font-bold text-dark-text">
+                        ${link.clicks}
+                    </td>
+                    <td class="py-3 px-4 whitespace-nowrap text-sm text-right font-medium">
+                        <button data-id="${link.id}" class="copy-button text-primary hover:text-accent p-1 rounded-md transition duration-150" title="Copy Short URL">
+                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v4a1 1 0 001 1h5m-5-4v4h5M9 8h.01M15 8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
+                        <button data-id="${link.id}" class="delete-button text-red-500 hover:text-red-300 p-1 rounded-md transition duration-150" title="Delete Link">
+                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </td>
+                `;
+                linksTableBody.appendChild(row);
+            });
+        }
+        
+        /**
+         * Handles the form submission to create a new short link.
+         * @param {Event} e
+         */
+        async function handleShorten(e) {
+            e.preventDefault();
+            const longUrl = longUrlInput.value.trim();
+
+            if (!longUrl || !isAuthReady || !userId) {
+                formMessage.textContent = "Please enter a valid URL and wait for authentication.";
+                formMessage.classList.remove('text-green-600', 'text-red-600');
+                formMessage.classList.add('text-yellow-400'); // Adjusted for dark theme
+                return;
+            }
+
+            shortenButton.disabled = true;
+            formMessage.textContent = "Shortening...";
+            formMessage.classList.remove('text-red-600', 'text-yellow-400');
+            formMessage.classList.add('text-dark-muted');
+
+            try {
+                // Ensure the URL has a protocol for proper linking/redirection
+                const formattedUrl = longUrl.startsWith('http://') || longUrl.startsWith('https://') ? longUrl : `https://${longUrl}`;
+                
+                const newLink = {
+                    longUrl: formattedUrl,
+                    shortId: generateShortId(),
+                    clicks: 0,
+                    createdAt: new Date(),
+                    // Storing the actual user ID inside the document for easy query/security verification
+                    userId: userId 
+                };
+
+                const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/shortened_links`);
+                await addDoc(linksCollectionRef, newLink);
+
+                formMessage.textContent = "Link successfully shortened!";
+                formMessage.classList.remove('text-dark-muted', 'text-red-600');
+                formMessage.classList.add('text-green-400'); // Adjusted for dark theme
+                longUrlInput.value = ''; // Clear input
+
+            } catch (error) {
+                console.error("Error shortening URL:", error);
+                formMessage.textContent = `Error: Failed to save link. ${error.message}`;
+                formMessage.classList.remove('text-dark-muted', 'text-green-400');
+                formMessage.classList.add('text-red-400'); // Adjusted for dark theme
+            } finally {
+                shortenButton.disabled = false;
+                setTimeout(() => formMessage.textContent = '', 5000);
+            }
+        }
+
+        /**
+         * Simulates a link click: increments click count and redirects.
+         * @param {string} docId - Firestore document ID.
+         * @param {string} url - The long URL to redirect to.
+         */
+        async function handleSimulatedClick(docId, url) {
+            if (!isAuthReady || !userId) return;
+
+            try {
+                const linkDocRef = doc(db, `artifacts/${appId}/users/${userId}/shortened_links`, docId);
+                
+                // Get current link data (optimistic update is complex, so we'll just increment)
+                // Note: We cannot rely on FieldValue.increment() in a client-side demo due to potential slow connection and snapshot issues, but we will use the logic that works best here.
+                
+                // Fetch the current state to safely increment (safer than relying on a snapshot)
+                // However, since onSnapshot is running, we can just use a simple update
+                await updateDoc(linkDocRef, {
+                    clicks: db.clicks + 1 || 1 // Firestore FieldValue.increment would be better server-side
+                });
+
+                // Simulate the redirect
+                window.open(url, '_blank');
+
+            } catch (error) {
+                console.error("Error updating click count:", error);
+                // Optionally show error message
+            }
+        }
+
+        /**
+         * Deletes a link from Firestore.
+         * @param {string} docId - Firestore document ID.
+         */
+        async function handleDeleteLink(docId) {
+            if (!isAuthReady || !userId) return;
+
+            // In a real app, you would use a custom confirmation modal here.
+            if (!confirm(`Are you sure you want to delete this link?`)) {
+                 return;
+            }
+
+            try {
+                const linkDocRef = doc(db, `artifacts/${appId}/users/${userId}/shortened_links`, docId);
+                await deleteDoc(linkDocRef);
+            } catch (error) {
+                console.error("Error deleting link:", error);
+                // Handle delete error
+            }
+        }
+
+        /**
+         * Copies the short link path to the clipboard.
+         * @param {string} shortId
+         */
+        function handleCopy(shortId) {
+            const tempInput = document.createElement('input');
+            const shortUrl = `/s/${shortId}`; // Simulated short path
+            tempInput.value = shortUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            // Simple visual feedback
+            const btn = event.target.closest('.copy-button');
+            if (btn) {
+                const originalTitle = btn.title;
+                btn.title = 'Copied!';
+                setTimeout(() => btn.title = originalTitle, 2000);
+            }
+        }
+
+
+        /**
+         * Sets up the real-time listener for the user's links.
+         */
+        function startLinksListener() {
+            // Guard clause: ensure authentication is ready
+            if (!isAuthReady || !userId || !db) {
+                console.log("Waiting for auth to start listener...");
+                return;
+            }
+            
+            // Collection path: /artifacts/{appId}/users/{userId}/shortened_links
+            const linksCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/shortened_links`);
+            const q = query(linksCollectionRef);
+
+            // Set up real-time listener
+            onSnapshot(q, (snapshot) => {
+                const links = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // Map data, ensuring createdAt is handled if it's a Timestamp
+                    links.push({
+                        id: doc.id,
+                        ...data,
+                        createdAt: data.createdAt.toDate ? data.createdAt : new Date(data.createdAt) // Ensure it's a Date object
+                    });
+                });
+                renderLinks(links);
+            }, (error) => {
+                console.error("Error listening to links:", error);
+                linksTableBody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-red-400">Error loading links. See console for details.</td></tr>`;
+            });
+        }
+
+        // --- Event Listeners ---
+        
+        // 1. Shorten Form Submission
+        shortenForm.addEventListener('submit', handleShorten);
+
+        // 2. Dashboard Actions (Delegated Listener for dynamic elements)
+        linksTableBody.addEventListener('click', (e) => {
+            if (e.target.closest('.simulated-short-link')) {
+                e.preventDefault();
+                const linkElement = e.target.closest('.simulated-short-link');
+                const docId = linkElement.dataset.id;
+                const url = linkElement.dataset.url;
+                handleSimulatedClick(docId, url);
+            } else if (e.target.closest('.delete-button')) {
+                const docId = e.target.closest('.delete-button').dataset.id;
+                handleDeleteLink(docId);
+            } else if (e.target.closest('.copy-button')) {
+                const row = e.target.closest('tr');
+                const shortIdElement = row.querySelector('.simulated-short-link');
+                if (shortIdElement) {
+                    const fullPath = shortIdElement.textContent.trim(); // e.g., /s/abcdeF
+                    handleCopy(fullPath);
+                }
+            }
+        });
+
+        // Initialize the app on load
+        window.onload = initializeFirebase;
+
+    </script>
+</body>
+</html>
